@@ -1,0 +1,66 @@
+name: Deploy to GitHub Pages
+
+# Manual-only: the web app is an optional frontend since the Discord bot
+# became the primary interface. Enable GitHub Pages and run this workflow
+# from the Actions tab if you want the web view hosted.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build contracts (for ABI codegen)
+        run: forge build --root contracts
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate typed ABI
+        run: pnpm --filter web generate
+
+      - name: Build site
+        run: pnpm --filter web build
+        env:
+          VITE_PRIVY_APP_ID: ${{ vars.VITE_PRIVY_APP_ID }}
+          VITE_CHAIN_ID: ${{ vars.VITE_CHAIN_ID }}
+          VITE_RPC_URL: ${{ vars.VITE_RPC_URL }}
+          VITE_CONTRACT_ADDRESS: ${{ vars.VITE_CONTRACT_ADDRESS }}
+          VITE_DEPLOY_BLOCK: ${{ vars.VITE_DEPLOY_BLOCK }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,21 @@
+{
+  "name": "bot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "e2e": "tsx scripts/e2e.ts",
+    "deploy": "tsx scripts/deploy.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0",
+    "dotenv": "^17.4.2",
+    "viem": "^2.55.10"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "tsx": "^4.23.9",
+    "typescript": "~6.0.3"
+  }
+}

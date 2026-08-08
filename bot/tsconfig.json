@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src", "scripts", "../web/src/lib/types.ts", "../web/src/lib/derive.ts", "../web/src/lib/chatFlow.ts", "../web/src/generated.ts"]
+}

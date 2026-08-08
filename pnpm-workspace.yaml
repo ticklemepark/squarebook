@@ -1,0 +1,9 @@
+packages:
+  - "web"
+  - "bot"
+allowBuilds:
+  '@reown/appkit': false
+  bufferutil: true
+  esbuild: true
+  keccak: true
+  utf-8-validate: true

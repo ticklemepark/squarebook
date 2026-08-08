@@ -1,0 +1,17 @@
+{
+  "name": "bot",
+  "private": "true",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "generate": "pnpm --filter web generate",
+    "test:contracts": "forge test --root contracts",
+    "anvil": "anvil",
+    "seed:local": "cd contracts && forge script script/SeedLocal.s.sol:SeedDeploy --rpc-url http://127.0.0.1:8545 --broadcast && cast rpc --rpc-url http://127.0.0.1:8545 evm_increaseTime 86400 && cast rpc --rpc-url http://127.0.0.1:8545 evm_mine && forge script script/SeedLocal.s.sol:SeedBets --rpc-url http://127.0.0.1:8545 --broadcast",
+    "start": "tsx src/index.ts",
+    "e2e": "tsx scripts/e2e.ts",
+    "deploy": "tsx scripts/deploy.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "type": "module"
+}

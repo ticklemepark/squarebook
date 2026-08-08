@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@layer components {
+  .card {
+    @apply bg-white border border-neutral-200 rounded-xl;
+  }
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 hover:bg-neutral-50 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer;
+  }
+  .btn-primary {
+    @apply border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-700;
+  }
+  .btn-danger {
+    @apply border-red-300 text-red-700 hover:bg-red-50;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-neutral-300 bg-white px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-100 cursor-pointer;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap;
+  }
+  .bubble-bot {
+    @apply self-start bg-neutral-100 rounded-2xl rounded-bl-sm px-3.5 py-2 text-[15px] max-w-[85%];
+  }
+  .bubble-me {
+    @apply self-end bg-blue-600 text-white rounded-2xl rounded-br-sm px-3.5 py-2 text-[15px] max-w-[85%];
+  }
+}
+
+body {
+  @apply bg-neutral-100 text-neutral-900 antialiased;
+}
