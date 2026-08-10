@@ -134,7 +134,7 @@ export async function handleCommand(
         if (!memberNameArg) return fail("Give them a name, e.g. `/addmember @sam Sam`.");
         const targetAddr = recordUser(targetId);
         await sendAs(discordId, "addMember", [targetAddr, memberNameArg]);
-        return { content: `Welcome **${memberNameArg}** <@${targetId}> — you're on the ledger. 🎲` };
+        return { content: `Welcome **${memberNameArg}** — you're on the ledger. 🎲` };
       }
 
       case "bet": {
@@ -153,7 +153,7 @@ export async function handleCommand(
         const days = Number(opts.days ?? 7) || 7;
         await sendAs(discordId, "proposeBet", [taker, terms, qty, unit, BigInt(now() + days * 24 * 3600)]);
         return {
-          content: `Bet proposed to <@${targetId}>: **${terms}** for **${stakeLabel(qty, unit)}**. They have ${days} days to accept.`,
+          content: `Bet proposed to **${memberName(ledger.members, taker)}**: **${terms}** for **${stakeLabel(qty, unit)}**. They have ${days} days to accept.`,
         };
       }
 

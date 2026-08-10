@@ -1,9 +1,10 @@
 /**
  * Deploys BetBook with the bot operator's derived account as first member.
  *
- *   OWNER_DISCORD_ID=<your discord user id> OWNER_NAME=Timothy \
- *   DEPLOYER_KEY=0x... RPC_URL=https://sepolia.base.org CHAIN_ID=84532 \
- *   MASTER_SEED=<strong secret> pnpm --filter bot deploy
+ *   OWNER_ID=<your handle: iMessage phone like +15551234567, or Discord id> \
+ *   OWNER_NAME=Timothy pnpm --filter bot deploy
+ *
+ * DEPLOYER_KEY defaults to FUNDER_KEY; RPC_URL/CHAIN_ID/MASTER_SEED from .env.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -20,10 +21,10 @@ const artifactPath = join(
 );
 const artifact = JSON.parse(readFileSync(artifactPath, "utf8"));
 
-const ownerId = process.env.OWNER_DISCORD_ID;
+const ownerId = process.env.OWNER_ID ?? process.env.OWNER_DISCORD_ID;
 const ownerName = process.env.OWNER_NAME ?? "Owner";
 if (!ownerId) {
-  console.error("Set OWNER_DISCORD_ID (your Discord user id) and OWNER_NAME.");
+  console.error("Set OWNER_ID (your iMessage phone number in E.164 form, e.g. +15551234567) and OWNER_NAME.");
   process.exit(1);
 }
 
@@ -41,4 +42,4 @@ const receipt = await publicClient.waitForTransactionReceipt({ hash });
 console.log(`BetBook deployed`);
 console.log(`  CONTRACT_ADDRESS=${receipt.contractAddress}`);
 console.log(`  deploy block=${receipt.blockNumber}`);
-console.log(`  first member ${ownerName} (${owner.address}) for Discord id ${ownerId}`);
+console.log(`  first member ${ownerName} (${owner.address}) for handle ${ownerId}`);

@@ -3,14 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/index.ts",
+    "start": "tsx src/photon.ts",
     "e2e": "tsx scripts/e2e.ts",
     "deploy": "tsx scripts/deploy.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start:imessage": "tsx src/photon.ts",
+    "start:discord": "tsx src/index.ts"
   },
   "dependencies": {
     "discord.js": "^14.27.0",
     "dotenv": "^17.4.2",
+    "spectrum-ts": "^12.7.0",
     "viem": "^2.55.10"
   },
   "devDependencies": {

@@ -6,4 +6,5 @@ allowBuilds:
   bufferutil: true
   esbuild: true
   keccak: true
+  protobufjs: true
   utf-8-validate: true

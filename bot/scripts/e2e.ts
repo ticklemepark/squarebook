@@ -10,18 +10,28 @@ import { fileURLToPath } from "node:url";
 import { createTestClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-process.env.RPC_URL ??= "http://127.0.0.1:8545";
-process.env.CHAIN_ID ??= "31337";
-process.env.MASTER_SEED ??= "e2e-test-seed";
+// force local values BEFORE config loads .env — the e2e must be hermetic
+// even when a production .env exists next to it (dotenv never overrides
+// already-set variables)
+process.env.RPC_URL = "http://127.0.0.1:8545";
+process.env.CHAIN_ID = "31337";
+process.env.MASTER_SEED = "e2e-test-seed";
+process.env.FUNDER_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // anvil #0
+delete process.env.CONTRACT_ADDRESS;
+// anvil's ~2 gwei gas needs bigger top-ups than Base Sepolia's ~0.006 gwei
+process.env.MIN_BALANCE_ETH = "0.001";
+process.env.TOP_UP_ETH = "0.05";
 
 const { CHAIN, FUNDER_KEY, RPC_URL } = await import("../src/config");
 const { publicClient, read } = await import("../src/chain");
 const { accountFor } = await import("../src/keys");
 const { handleCommand, handleButton, handleChat } = await import("../src/engine");
+const { handleText, commandHint } = await import("../src/textcmd");
 const { startWatcher } = await import("../src/notify");
 const { Status } = await import("../../web/src/lib/types");
 
-const TIMOTHY = "100", ALEX = "200", SAM = "300", PRIYA = "400";
+// iMessage-style handles: users are phone numbers now
+const TIMOTHY = "+15550000100", ALEX = "+15550000200", SAM = "+15550000300", PRIYA = "+15550000400";
 
 let passed = 0;
 function assert(cond: unknown, label: string) {
@@ -58,6 +68,7 @@ async function status(id: number): Promise<number> {
 // ---- membership
 console.log("membership:");
 let r = await handleCommand(TIMOTHY, "addmember", { user: ALEX, name: "Alex" });
+if (!r.content.includes("Welcome")) console.error("DEBUG addmember reply:", r.content);
 assert(r.content.includes("Alex"), "Timothy adds Alex");
 r = await handleCommand(ALEX, "addmember", { user: SAM, name: "Sam" });
 assert(r.content.includes("Sam"), "Alex adds Sam");
@@ -112,21 +123,32 @@ assert((await status(0)) === Status.Superseded, "parent debt wiped (stays supers
 r = await handleCommand(TIMOTHY, "balance", {});
 assert(r.content.includes("All square"), "balances clear after double loss");
 
-// ---- dispute + group vote
-console.log("dispute:");
-await handleCommand(TIMOTHY, "bet", { user: SAM, qty: 20, unit: "USD", terms: "Sam is late again" });
-await handleButton(SAM, "accept:2");
-await handleButton(TIMOTHY, "claimwin:2");
-r = await handleButton(SAM, "disputewin:2");
-assert(r.content.includes("group votes"), "Sam disputes");
+// ---- dispute + group vote, driven through the iMessage text-command layer
+console.log("dispute (via text commands):");
+let tr = await handleText(TIMOTHY, "bet Sam 20 USD Sam is late again", "group");
+assert(tr[0].content.includes("Bet proposed"), "text `bet Sam 20 USD …` proposes");
+tr = await handleText(SAM, "accept 2", "dm");
+assert((await status(2)) === Status.Active, "text `accept 2` works");
+tr = await handleText(TIMOTHY, "won 2", "dm");
+assert((await status(2)) === Status.Claimed, "text `won 2` claims");
+tr = await handleText(SAM, "dispute 2", "group");
+assert(tr[0].content.includes("group votes"), "text `dispute 2` disputes");
 assert((await status(2)) === Status.Disputed, "bet 2 disputed");
-r = await handleButton(TIMOTHY, "votemaker:2");
-assert(r.content.includes("⚠️"), "party cannot vote own dispute");
-await handleButton(ALEX, "votemaker:2");
-await handleButton(PRIYA, "votemaker:2");
-r = await handleButton(SAM, "finalize:2");
-assert(r.content.includes("finalized"), "early majority finalizes");
+tr = await handleText(TIMOTHY, "vote 2 Timothy", "group");
+assert(tr[0].content.includes("⚠️"), "party cannot vote own dispute");
+tr = await handleText(ALEX, "vote 2 Timothy", "group");
+assert(tr[0].content.includes("Vote cast"), "text `vote 2 Timothy` resolves name to maker");
+tr = await handleText(PRIYA, "vote 2 timothy", "group");
+assert(tr[0].content.includes("Vote cast"), "vote name matching is case-insensitive");
+tr = await handleText(SAM, "finalize 2", "group");
+assert(tr[0].content.includes("finalized"), "text `finalize 2` finalizes on early majority");
 assert((await status(2)) === Status.Resolved, "bet 2 resolved by vote");
+tr = await handleText(ALEX, "what a ripoff", "group");
+assert(tr.length === 0, "non-command group chatter is ignored");
+tr = await handleText(ALEX, "vote 2 Priya", "group");
+assert(tr[0].content.includes("isn't a party"), "voting for a non-party is rejected");
+assert(commandHint([{ id: "accept:9", label: "Accept" }, { id: "votemaker:9", label: "#9: Alex won" }]).includes("`accept 9`"), "buttons render as reply hints");
+assert(commandHint([{ id: "votemaker:9", label: "#9: Alex won" }]).includes("vote 9 Alex"), "vote hints recover the name");
 
 // ---- DM chat flow
 console.log("chat flow:");

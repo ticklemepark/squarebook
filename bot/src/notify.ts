@@ -14,10 +14,6 @@ export interface Outbound {
 
 type Emit = (o: Outbound) => Promise<void> | void;
 
-function mention(address?: string): string {
-  const id = address ? discordIdFor(address) : undefined;
-  return id ? `<@${id}>` : "";
-}
 
 async function onLogs(logs: { eventName?: string; args?: Record<string, unknown> }[], emit: Emit) {
   // one ledger fetch per batch; names/state are read after the event landed
@@ -167,7 +163,7 @@ async function onLogs(logs: { eventName?: string; args?: Record<string, unknown>
         const auto = (a.markedBy as string) === "0x0000000000000000000000000000000000000000";
         await emit({
           kind: "channel",
-          reply: { content: auto ? `⚖️ Bet #${bet.id} settled — nothing owed.` : `💸 Debt on #${bet.id} paid and cleared. ${mention(bet.maker)} ${mention(bet.taker)}` },
+          reply: { content: auto ? `⚖️ Bet #${bet.id} settled — nothing owed.` : `💸 Debt on #${bet.id} paid and cleared — ${name(bet.maker)} and ${name(bet.taker)} are square.` },
         });
         break;
       }
