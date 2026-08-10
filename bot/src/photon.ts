@@ -66,16 +66,29 @@ const app = await Spectrum({
 const im = imessage(app);
 console.log("Squarebook agent connected to Photon (iMessage).");
 
+async function dm(userId: string, text: string) {
+  const space = await im.space.create(userId);
+  await space.send(text);
+}
+
 startWatcher(async (o) => {
   const text = renderReply(o.reply);
   try {
     if (o.kind === "channel") {
-      if (!homeSpaceId) return; // no group known yet — DMs still flow
-      const space = await im.space.get(homeSpaceId);
-      await space.send(text);
+      if (homeSpaceId) {
+        // a group feed exists (Business tier / pinned space)
+        const space = await im.space.get(homeSpaceId);
+        await space.send(text);
+      } else {
+        // Photon free tier limits iMessage group messaging, so the "feed"
+        // is a broadcast: every member gets the event as a DM (minus anyone
+        // the event already DM'd directly)
+        for (const userId of o.fanout ?? []) {
+          await dm(userId, text).catch((e) => console.error(`fanout to ${userId} failed:`, e));
+        }
+      }
     } else if (o.discordId) {
-      const space = await im.space.create(o.discordId);
-      await space.send(text);
+      await dm(o.discordId, text);
     }
   } catch (e) {
     console.error("notify send failed:", e);

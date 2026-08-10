@@ -21,6 +21,8 @@ delete process.env.CONTRACT_ADDRESS;
 // anvil's ~2 gwei gas needs bigger top-ups than Base Sepolia's ~0.006 gwei
 process.env.MIN_BALANCE_ETH = "0.001";
 process.env.TOP_UP_ETH = "0.05";
+// keep test identities out of the live agent's data dir
+process.env.BOT_DATA_DIR = `/tmp/squarebook-e2e-${process.pid}`;
 
 const { CHAIN, FUNDER_KEY, RPC_URL } = await import("../src/config");
 const { publicClient, read } = await import("../src/chain");
@@ -79,9 +81,9 @@ assert(r.content.includes("not a member"), "non-member is rejected");
 await advanceTime(86_400); // members must predate disputes for vote eligibility
 
 // ---- collect notifier output from here on
-const outbound: { kind: string; discordId?: string; content: string }[] = [];
+const outbound: { kind: string; discordId?: string; content: string; fanout?: string[] }[] = [];
 const unwatch = startWatcher((o) => {
-  outbound.push({ kind: o.kind, discordId: o.discordId, content: o.reply.content });
+  outbound.push({ kind: o.kind, discordId: o.discordId, content: o.reply.content, fanout: o.fanout });
 });
 
 // ---- propose via /bet, accept via button
@@ -169,6 +171,11 @@ assert(outbound.some((o) => o.kind === "channel" && o.content.includes("Dispute 
 assert(outbound.some((o) => o.kind === "dm" && o.discordId === ALEX && o.content.includes("bets you")), "taker DM'd the offer");
 assert(outbound.some((o) => o.kind === "dm" && o.discordId === PRIYA), "Priya DM'd the chat-created offer");
 assert(outbound.some((o) => o.kind === "channel" && o.content.includes("resolved by group vote")), "vote result posted");
+const proposedFeed = outbound.find((o) => o.kind === "channel" && o.content.includes("proposes to") && o.content.includes("Lakers"));
+assert(proposedFeed?.fanout?.includes(TIMOTHY), "channel events carry a DM fanout list for iMessage");
+assert(!proposedFeed?.fanout?.includes(ALEX), "fanout excludes the member who got the targeted DM");
+const disputeFeed = outbound.find((o) => o.kind === "channel" && o.content.includes("Dispute on #2"));
+assert(disputeFeed?.fanout?.length === 4, "dispute vote broadcast reaches every member");
 
 console.log(`\nALL PASSED (${passed} assertions)`);
 process.exit(0);
