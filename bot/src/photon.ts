@@ -5,9 +5,7 @@ import { Spectrum, type Content, type Space } from "spectrum-ts";
 import { imessage } from "spectrum-ts/providers/imessage";
 import { commandHint, handleText } from "./textcmd";
 import { startWatcher } from "./notify";
-import { allUsers, recordUser } from "./users";
-import { fetchLedger } from "./chain";
-import { sameAddress } from "../../web/src/lib/types";
+import { recordUser } from "./users";
 import type { Reply } from "./engine";
 
 /**
@@ -44,30 +42,15 @@ function saveHome(id: string | undefined) {
 
 let homeSpaceId = loadHome();
 
-/**
- * Create the Squarebook group chat with every ledger member and make it the
- * feed. Agent-created spaces are provisioned by Photon and therefore
- * routable — unlike arbitrary user-created threads, which the free tier
- * never delivered to us. If the tier refuses group creation, the thrown
- * error surfaces verbatim to the requester and the DM feed stays.
- */
-async function createHomeGroup(requesterId: string): Promise<void> {
-  const ledger = await fetchLedger();
-  const users = allUsers();
-  const memberIds = Object.entries(users)
-    .filter(([, addr]) => ledger.members.some((m) => sameAddress(m.address, addr)))
-    .map(([id]) => id);
-  if (!memberIds.includes(requesterId)) memberIds.push(requesterId);
-  if (memberIds.length < 2)
-    throw new Error("Need at least two members with known numbers first — `addmember +1… <name>` your friends, then try again.");
-  const space = await im.space.create(memberIds);
-  await space.rename("🎲 Squarebook").catch(() => {});
-  homeSpaceId = space.id;
-  saveHome(space.id);
-  await space.send(
-    "🎲 This is the Squarebook group — every bet, vote, and settlement lands here, and commands work in this thread. Text `help` for the list.",
-  );
-}
+// shared-mode numbers can't create groups (space.create is dedicated-number
+// only) — but they can adopt an existing thread via space.get, so the flow
+// is: the user makes the group chat and the agent claims it on first message
+
+const GROUP_HOWTO =
+  "Shared-number agents can't create group chats. Do it from your side: in Messages, start a group with me and your friends, then send any message in it — I'll adopt that thread as the Squarebook feed.";
+
+const COMMAND_SHAPE =
+  /^(accept|decline|cancel|agree|dispute|escalate|vote|finalize|paid|double|won|lost|push|bet|addmember|pending|balances?|whoami|ledger|help)\b/i;
 
 // ----------------------------------------------------------------- rendering
 
@@ -126,12 +109,17 @@ for await (const [space, message] of app.messages) {
   try {
     if (message.direction !== "inbound") continue;
     const sender = message.sender;
-    if (!sender || sender.kind === "agent") continue;
+    if (sender?.kind === "agent") continue;
     const text = contentToText(message.content);
-    if (!text) continue;
 
     const sp = imessage.is(space as Space) ? imessage(space as Space) : undefined;
     const isGroup = sp?.type === "group";
+    console.log(
+      `[inbound] ${isGroup ? "group" : "dm"} space=${space.id} sender=${sender?.id ?? "<unattributed>"} type=${message.content.type}${text ? ` text=${JSON.stringify(text.slice(0, 80))}` : ""}`,
+    );
+
+    // adopt the first group thread we hear as the feed — BEFORE any sender
+    // filtering, since shared-mode group messages may arrive unattributed
     if (isGroup && !homeSpaceId) {
       homeSpaceId = space.id;
       saveHome(space.id);
@@ -140,18 +128,21 @@ for await (const [space, message] of app.messages) {
       );
     }
 
+    if (!text) continue;
+
+    if (!sender) {
+      // can't sign on behalf of an unknown sender; commands need attribution
+      if (isGroup && COMMAND_SHAPE.test(text.trim()))
+        await space.send("I can't tell who sent that in this thread — DM me the command instead. The feed still posts here.");
+      continue;
+    }
+
     recordUser(sender.id);
 
     // group-feed management (DM-only commands)
     const lower = text.trim().toLowerCase();
     if (!isGroup && (lower === "group" || lower === "creategroup")) {
-      try {
-        await createHomeGroup(sender.id);
-        await space.send("Done — check your group chats for 🎲 Squarebook. The feed and commands live there now.");
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        await space.send(`Couldn't create the group: ${msg}\nThe DM feed stays on — everything still works here.`);
-      }
+      await space.send(homeSpaceId ? `The feed already has a home thread. Text \`nogroup\` to detach it.\n${GROUP_HOWTO}` : GROUP_HOWTO);
       continue;
     }
     if (!isGroup && lower === "nogroup") {
