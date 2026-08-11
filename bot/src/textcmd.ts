@@ -20,6 +20,7 @@ const HELP = [
   "`paid 3` — clear a debt you're owed · `double 3 <terms>` — double or nothing",
   "`pending` · `balance` · `whoami` · `ledger`",
   "`addmember <phone> <name>` — add a friend",
+  "`group` (in a DM) — create the Squarebook group chat · `nogroup` — back to DM feed",
 ].join("\n");
 
 /** Render a Reply's buttons as a reply-command hint line. */
